@@ -1,0 +1,59 @@
+import os
+import rasterio
+from rasterio.merge import merge
+
+folder_paths = [
+    r'Folder path'
+]
+
+# Dictionary to store images with common prefixes
+image_dict = {}
+
+# Iterate through each folder
+for folder_path in folder_paths:
+    # List all files in the folder
+    files = os.listdir(folder_path)
+    
+    # Iterate through the files
+    for file in files:
+        # Check if the file ends with a specific extension like '.tif'
+        if file.endswith('.tif'):
+            # Extract the common prefix
+            prefix = file.split('_')[0]
+            
+            # Check if the prefix exists in the dictionary
+            if prefix not in image_dict:
+                # If it doesn't exist, create a list and add the file
+                image_dict[prefix] = [os.path.join(folder_path, file)]
+            else:
+                # If it exists, append the file to the existing list
+                image_dict[prefix].append(os.path.join(folder_path, file))
+
+# Write the mosaic to a new raster file in a specific folder
+result_folder = r'C:\Users\s393675\OneDrive - Cranfield University\Paper_4_LC_LST_Prediction\Fragstats_LC_Multi_years\2.3.P_mosaic_2040\2040_75_25'
+
+for prefix, files in image_dict.items():
+    # Ensure that there are at least two images with the same prefix
+    if len(files) >= 2:
+        # Open the images for merging
+        src_files_to_mosaic = [rasterio.open(fp) for fp in files]
+
+        # Merge the raster datasets
+        mosaic, out_trans = merge(src_files_to_mosaic)
+
+        # Update metadata if necessary
+        profile = src_files_to_mosaic[0].profile
+        profile.update({
+            'transform': out_trans,
+            'height': mosaic.shape[1],
+            'width': mosaic.shape[2]
+        })
+
+        # Write the mosaic to a new raster file in the result folder
+        result_file = os.path.join(result_folder, f'{prefix}_mosaic_2040_75_25.tif')
+        with rasterio.open(result_file, 'w', **profile) as dst:
+            dst.write(mosaic)
+            
+        print(f"Images with prefix '{prefix}' have been merged and saved to '{result_file}'")
+    else:
+        print(f"Insufficient images with prefix '{prefix}' to create a mosaic.")
